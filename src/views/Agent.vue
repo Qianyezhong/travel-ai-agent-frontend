@@ -48,12 +48,49 @@ const handleSend = async (text) => {
       if (data === '[DONE]') {
         eventSource.close()
         loading.value = false
+        // 模拟一个任务结束的步骤
+        messages.value.push({
+          role: 'agent',
+          isAgentStep: true,
+          stepType: 'success',
+          stepTitle: '任务结束',
+          content: '任务执行结束',
+          expanded: true
+        })
         return
       }
       
-      // Sometimes SSE data comes with escaped newlines or formatting
-      // Unescape standard sequences if needed, but usually browser handles it.
-      messages.value[aiMessageIndex].content += data
+      // 尝试解析智能体的结构化输出，假设后端传回的是类似这样的 JSON:
+      // { "type": "thinking", "title": "思考过程", "content": "..." }
+      // { "type": "tool", "title": "调用工具", "toolName": "searchWeb", "content": "..." }
+      // 如果解析失败，则按普通文本追加
+      try {
+        const parsed = JSON.parse(data)
+        
+        if (parsed.type && ['thinking', 'tool', 'success'].includes(parsed.type)) {
+          // 如果是新的步骤结构，添加一个新气泡
+          messages.value.push({
+            role: 'agent',
+            isAgentStep: true,
+            stepType: parsed.type,
+            stepTitle: parsed.title || (parsed.type === 'tool' ? '调用工具' : '思考过程'),
+            toolName: parsed.toolName,
+            content: parsed.content || '',
+            expanded: true
+          })
+        } else {
+          // 普通追加内容
+          if (messages.value[aiMessageIndex].isAgentStep) {
+            // 如果上一个是步骤，则新建一个普通文本气泡
+             messages.value.push({ role: 'ai', content: parsed.content || data })
+          } else {
+            messages.value[aiMessageIndex].content += (parsed.content || data)
+          }
+        }
+      } catch (e) {
+        // Not JSON, append as plain text
+        messages.value[aiMessageIndex].content += data
+      }
     }
 
     eventSource.onerror = (error) => {

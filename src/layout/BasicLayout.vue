@@ -50,8 +50,17 @@
       </nav>
 
       <div class="user-info">
-        <el-icon class="user-icon"><User /></el-icon>
-        <span class="user-name">admin</span>
+        <el-dropdown @command="handleCommand" trigger="click">
+          <span class="el-dropdown-link user-dropdown">
+            <el-icon class="user-icon"><User /></el-icon>
+            <span class="user-name">admin</span>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </header>
 
@@ -90,6 +99,7 @@
 import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { User, Menu } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -99,6 +109,13 @@ const drawerVisible = ref(false)
 
 const goHome = () => {
   router.push('/')
+}
+
+const handleCommand = (command) => {
+  if (command === 'logout') {
+    ElMessage.success('退出登录成功')
+    router.push('/login')
+  }
 }
 </script>
 
@@ -189,13 +206,14 @@ const goHome = () => {
   background-color: #409eff;
 }
 
-.user-info {
+.user-dropdown {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #606266;
   font-size: 14px;
   cursor: pointer;
+  outline: none;
 }
 
 .user-icon {

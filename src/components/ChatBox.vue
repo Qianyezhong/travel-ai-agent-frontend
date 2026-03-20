@@ -69,13 +69,48 @@
           :class="msg.role === 'user' ? 'message-right' : 'message-left'"
         >
           <div class="avatar" :class="msg.role">
-            {{ msg.role === 'user' ? '我' : 'AI' }}
+            <template v-if="msg.role === 'user'">我</template>
+            <template v-else-if="msg.role === 'ai'">AI</template>
+            <el-icon v-else-if="msg.role === 'agent'"><Monitor /></el-icon>
           </div>
           <div class="message-content">
-            <div class="bubble" :class="msg.role">
+            <!-- Normal Text Message -->
+            <div v-if="!msg.isAgentStep" class="bubble" :class="msg.role">
               {{ msg.content }}
             </div>
-            <div class="actions" v-if="msg.role === 'ai'">
+            
+            <!-- Agent Step Message -->
+            <div v-else class="agent-step-bubble">
+              <div class="agent-step-header" @click="msg.expanded = !msg.expanded">
+                <div class="agent-step-title">
+                  <el-icon v-if="msg.stepType === 'thinking'"><Connection /></el-icon>
+                  <el-icon v-else-if="msg.stepType === 'tool'"><Setting /></el-icon>
+                  <el-icon v-else-if="msg.stepType === 'success'" class="success-icon"><Select /></el-icon>
+                  <span>{{ msg.stepTitle }}</span>
+                </div>
+                <el-icon class="expand-icon" :class="{ 'is-expanded': msg.expanded }"><ArrowRight /></el-icon>
+              </div>
+              <el-collapse-transition>
+                <div v-show="msg.expanded" class="agent-step-body">
+                  <div v-if="msg.stepType === 'thinking'" class="thinking-content">
+                    {{ msg.content }}
+                  </div>
+                  <div v-else-if="msg.stepType === 'tool'" class="tool-content">
+                    <div class="tool-call">
+                      <el-icon><Link /></el-icon> 调用工具: {{ msg.toolName }}
+                    </div>
+                    <div class="tool-result" v-if="msg.content">
+                      {{ msg.content }}
+                    </div>
+                  </div>
+                  <div v-else class="thinking-content">
+                     {{ msg.content }}
+                  </div>
+                </div>
+              </el-collapse-transition>
+            </div>
+
+            <div class="actions" v-if="msg.role === 'ai' && !msg.isAgentStep">
               <el-icon class="copy-icon" @click="copyText(msg.content)"><CopyDocument /></el-icon>
             </div>
           </div>
@@ -108,7 +143,10 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { ChatLineRound, Delete, CopyDocument, Position, Expand } from '@element-plus/icons-vue'
+import { 
+  ChatLineRound, Delete, CopyDocument, Position, 
+  Expand, Monitor, Connection, Setting, Select, ArrowRight, Link
+} from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -360,10 +398,16 @@ onMounted(() => {
   background: #409eff;
 }
 
+.avatar.agent {
+  background: #2b3a4a;
+  font-size: 20px;
+}
+
 .message-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .message-right .message-content {
@@ -377,6 +421,7 @@ onMounted(() => {
   line-height: 1.6;
   word-break: break-word;
   white-space: pre-wrap;
+  display: inline-block;
 }
 
 .bubble.ai {
@@ -389,6 +434,99 @@ onMounted(() => {
   background: #ecf5ff;
   color: #409eff;
   border-top-right-radius: 4px;
+}
+
+/* Agent Step Styles */
+.agent-step-bubble {
+  width: 100%;
+  min-width: 300px;
+  background: #f8f9fb;
+  border-radius: 12px;
+  border: 1px solid #ebeef5;
+  overflow: hidden;
+  border-top-left-radius: 4px;
+}
+
+.agent-step-header {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: #f0f2f5;
+  user-select: none;
+  transition: background 0.3s;
+}
+
+.agent-step-header:hover {
+  background: #e4e7ed;
+}
+
+.agent-step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.agent-step-title .el-icon {
+  font-size: 16px;
+  color: #409eff;
+}
+
+.success-icon {
+  color: #67c23a !important;
+}
+
+.expand-icon {
+  color: #909399;
+  transition: transform 0.3s;
+}
+
+.expand-icon.is-expanded {
+  transform: rotate(90deg);
+}
+
+.agent-step-body {
+  padding: 16px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+  background: #ffffff;
+}
+
+.thinking-content {
+  white-space: pre-wrap;
+}
+
+.tool-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f4f4f5;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #303133;
+  width: fit-content;
+}
+
+.tool-result {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: monospace;
 }
 
 .actions {
