@@ -242,7 +242,8 @@ import {
   Document, Aim, CaretTop, Loading, CircleCheckFilled, Download,
   Picture, Tickets
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import axios from 'axios'
 
 const props = defineProps({
   title: {
@@ -259,7 +260,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['send', 'clear'])
+const emit = defineEmits(['send', 'clear', 'switch-session', 'new-session', 'delete-session'])
 
 const sessions = ref([
   { id: '1', title: '新会话' }
@@ -273,21 +274,51 @@ const createNewChat = () => {
   const newId = Date.now().toString()
   sessions.value.unshift({ id: newId, title: '新会话' })
   currentSessionId.value = newId
-  emit('clear')
+  emit('new-session', newId)
 }
 
 const switchSession = (id) => {
   currentSessionId.value = id
-  emit('clear')
+  emit('switch-session', id)
 }
 
-const deleteSession = (id) => {
-  sessions.value = sessions.value.filter(s => s.id !== id)
-  if (currentSessionId.value === id) {
-    if (sessions.value.length > 0) {
-      switchSession(sessions.value[0].id)
-    } else {
-      createNewChat()
+const deleteSession = async (id) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除该对话吗？此操作将永久删除该会话记录，不可恢复。',
+      '删除会话',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'delete-confirm-box',
+        confirmButtonClass: 'delete-confirm-btn',
+        icon: Delete
+      }
+    )
+    
+    // Call backend API
+    await axios.delete(`http://localhost:8123/api/ai/trave_app/delete`, {
+      params: { conversationId: id }
+    })
+    
+    // Remove from local list
+    sessions.value = sessions.value.filter(s => s.id !== id)
+    emit('delete-session', id)
+    
+    if (currentSessionId.value === id) {
+      if (sessions.value.length > 0) {
+        switchSession(sessions.value[0].id)
+      } else {
+        createNewChat()
+      }
+    }
+    
+    ElMessage.success('会话已成功删除')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('Delete failed:', error)
+      ElMessage.error('删除失败，请稍后重试')
     }
   }
 }
@@ -360,6 +391,20 @@ onMounted(() => {
   height: 100%;
   width: 100%;
   background-color: #f5f7fa;
+}
+
+/* Make sure el-message-box styles are available globally if scoped causes issues, 
+   but for now we use deep or standard class names */
+:deep(.delete-confirm-box) {
+  border-radius: 12px;
+}
+:deep(.delete-confirm-btn) {
+  background-color: #f56c6c !important;
+  border-color: #f56c6c !important;
+}
+:deep(.delete-confirm-btn:hover) {
+  background-color: #f78989 !important;
+  border-color: #f78989 !important;
 }
 
 .sidebar {
@@ -553,6 +598,13 @@ onMounted(() => {
   color: #303133;
   border-top-left-radius: 4px;
   width: 100%;
+}
+
+.bubble.user {
+  background: #e6f1fc;
+  color: #303133;
+  border-top-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
 }
 
 /* Agent Hierarchical Styles */

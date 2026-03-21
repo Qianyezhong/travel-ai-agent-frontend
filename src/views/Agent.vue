@@ -1,15 +1,18 @@
 <template>
   <ChatBox 
     title="自主规划"
-    :messages="messages"
+    :messages="currentMessages"
     :loading="loading"
     @send="handleSend"
     @clear="handleClear"
+    @switch-session="handleSwitchSession"
+    @new-session="handleNewSession"
+    @delete-session="handleDeleteSession"
   />
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 import { ElMessage } from 'element-plus'
@@ -17,9 +20,20 @@ import { ElMessage } from 'element-plus'
 const route = useRoute()
 const router = useRouter()
 
-const messages = ref([
-  { role: 'agent', content: '您好，我是旅行助手智能体（Manus），您可以让我帮您完成复杂的旅行规划和工具调用。' }
-])
+// Dictionary to store messages for each session
+const sessionMessages = ref({
+  '1': [{ role: 'agent', content: '您好，我是旅行助手智能体（Manus），您可以让我帮您完成复杂的旅行规划和工具调用。\n'
+  +'我可以帮您将旅游规划总结到PDF中，您还可以让我把这个PDF发送到您的QQ邮箱。\n' 
+  +'比如：我一个人想去杭州玩，帮我推荐三四个热门景点，生成好以PDF形式发送到xxx@qq.com。'
+  }]
+})
+const currentSessionId = ref('1')
+
+// Computed property to pass only the current session's messages to ChatBox
+const currentMessages = computed(() => {
+  return sessionMessages.value[currentSessionId.value] || []
+})
+
 const loading = ref(false)
 let eventSource = null
 
@@ -32,19 +46,50 @@ onMounted(() => {
   }
 })
 
+const handleSwitchSession = (sessionId) => {
+  if (eventSource) {
+    eventSource.close()
+    loading.value = false
+  }
+  currentSessionId.value = sessionId
+}
+
+const handleNewSession = (sessionId) => {
+  if (eventSource) {
+    eventSource.close()
+    loading.value = false
+  }
+  currentSessionId.value = sessionId
+  sessionMessages.value[sessionId] = [
+    { role: 'agent', content: '您好，我是旅行助手智能体（Manus），您可以让我帮您完成复杂的旅行规划和工具调用。' }
+  ]
+}
+
+const handleDeleteSession = (sessionId) => {
+  if (sessionMessages.value[sessionId]) {
+    delete sessionMessages.value[sessionId]
+  }
+}
+
 const handleSend = async (text) => {
   if (!text) return
   
-  messages.value.push({ role: 'user', content: text })
-  messages.value.push({ 
+  const chatId = currentSessionId.value
+  if (!sessionMessages.value[chatId]) {
+    sessionMessages.value[chatId] = []
+  }
+  
+  const messagesArray = sessionMessages.value[chatId]
+  messagesArray.push({ role: 'user', content: text })
+  messagesArray.push({ 
     role: 'agent', 
     thinking: '',
     thinkingExpanded: true,
     content: '',
     steps: []
   })
-  const aiMessageIndex = messages.value.length - 1
-  const currentAgentMsg = messages.value[aiMessageIndex]
+  const aiMessageIndex = messagesArray.length - 1
+  const currentAgentMsg = messagesArray[aiMessageIndex]
   
   loading.value = true
 
@@ -173,7 +218,7 @@ const handleSend = async (text) => {
       if (parsed && parsed.type && ['thinking', 'tool', 'success', 'conclusion'].includes(parsed.type)) {
         
         // 过滤掉失败的结果（例如 Error searching Baidu 等）
-        if (parsed.content && (parsed.content.includes('Error') || parsed.content.includes('Exception'))) {
+        if (parsed.content && typeof parsed.content === 'string' && (parsed.content.includes('Error') || parsed.content.includes('Exception'))) {
           // 如果是错误信息，我们直接忽略这条数据，不展示给前端
           return;
         }
@@ -244,7 +289,7 @@ const handleClear = () => {
     eventSource.close()
   }
   loading.value = false
-  messages.value = [
+  sessionMessages.value[currentSessionId.value] = [
     { role: 'agent', content: '您好，我是旅行助手智能体（Manus），您可以让我帮您完成复杂的旅行规划和工具调用。' }
   ]
 }

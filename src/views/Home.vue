@@ -40,6 +40,20 @@
           </div>
         </div>
       </div>
+
+      <!-- Quick Prompts Section -->
+      <div class="quick-prompts-wrapper">
+        <div class="quick-prompts">
+          <div 
+            v-for="(prompt, index) in quickPrompts" 
+            :key="index" 
+            class="prompt-bubble"
+            @click="handlePromptClick(prompt)"
+          >
+            {{ prompt }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Bottom Feature Cards -->
@@ -101,6 +115,19 @@ const toggleDeepThinking = () => {
 const fullTitle = '嗨，欢迎使用 EtravelAI！'
 const displayedTitle = ref('')
 const isTypingComplete = ref(false)
+
+// Quick Prompts
+const quickPrompts = [
+  '我要一个人去旅行，帮我推荐几个城市',
+  '全家旅行推荐的地点',
+  '第一次去西藏有什么注意事项？',
+  '帮我规划一份成都三日游的美食攻略'
+]
+
+const handlePromptClick = (prompt) => {
+  quickMessage.value = prompt
+  handleQuickSend()
+}
 
 onMounted(() => {
   let currentIndex = 0
@@ -271,6 +298,40 @@ const handleQuickSend = () => {
   width: 40px;
   height: 40px;
   font-size: 18px;
+}
+
+.quick-prompts-wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin-top: 24px;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.prompt-bubble {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(235, 238, 245, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.prompt-bubble:hover {
+  background: #ffffff;
+  color: #409eff;
+  border-color: #c6e2ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
 }
 
 .bottom-features {

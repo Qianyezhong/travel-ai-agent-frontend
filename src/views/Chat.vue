@@ -1,15 +1,18 @@
 <template>
   <ChatBox 
     title="AI旅行智能助手"
-    :messages="messages"
+    :messages="currentMessages"
     :loading="loading"
     @send="handleSend"
     @clear="handleClear"
+    @switch-session="handleSwitchSession"
+    @new-session="handleNewSession"
+    @delete-session="handleDeleteSession"
   />
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 import { ElMessage } from 'element-plus'
@@ -17,28 +20,65 @@ import { ElMessage } from 'element-plus'
 const route = useRoute()
 const router = useRouter()
 
-const messages = ref([
-  { role: 'ai', content: '你好！有什么我可以帮助你的吗？' }
-])
+// Dictionary to store messages for each session
+const sessionMessages = ref({
+  '1': [{ role: 'ai', content: '你好！有什么我可以帮助你的吗？' }]
+})
+const currentSessionId = ref('1')
+
+// Computed property to pass only the current session's messages to ChatBox
+const currentMessages = computed(() => {
+  return sessionMessages.value[currentSessionId.value] || []
+})
+
 const loading = ref(false)
 let eventSource = null
 
 onMounted(() => {
   if (route.query.initialMessage) {
     const msg = route.query.initialMessage
-    // default chatId can be anything for the initial message, e.g. '1'
-    handleSend(msg, '1')
+    handleSend(msg, currentSessionId.value)
     // Clear the query so it doesn't trigger again on refresh
     router.replace({ path: route.path })
   }
 })
 
+const handleSwitchSession = (sessionId) => {
+  if (eventSource) {
+    eventSource.close()
+    loading.value = false
+  }
+  currentSessionId.value = sessionId
+}
+
+const handleNewSession = (sessionId) => {
+  if (eventSource) {
+    eventSource.close()
+    loading.value = false
+  }
+  currentSessionId.value = sessionId
+  sessionMessages.value[sessionId] = [
+    { role: 'ai', content: '你好！有什么我可以帮助你的吗？' }
+  ]
+}
+
+const handleDeleteSession = (sessionId) => {
+  if (sessionMessages.value[sessionId]) {
+    delete sessionMessages.value[sessionId]
+  }
+}
+
 const handleSend = async (text, chatId) => {
   if (!text) return
   
-  messages.value.push({ role: 'user', content: text })
-  messages.value.push({ role: 'ai', content: '' })
-  const aiMessageIndex = messages.value.length - 1
+  if (!sessionMessages.value[chatId]) {
+    sessionMessages.value[chatId] = []
+  }
+  
+  const messagesArray = sessionMessages.value[chatId]
+  messagesArray.push({ role: 'user', content: text })
+  messagesArray.push({ role: 'ai', content: '' })
+  const aiMessageIndex = messagesArray.length - 1
   
   loading.value = true
 
@@ -50,9 +90,6 @@ const handleSend = async (text, chatId) => {
     eventSource = new EventSource(url.toString())
 
     eventSource.onmessage = (event) => {
-      // Assuming the backend sends plain text or JSON
-      // If it's a JSON string, we should parse it. For now, let's append the raw data.
-      // Often SSE text comes chunk by chunk
       let data = event.data
       try {
         const parsed = JSON.parse(data)
@@ -63,22 +100,21 @@ const handleSend = async (text, chatId) => {
         // Not JSON, use as plain text
       }
       
-      // Sometimes SSE sends a special token to indicate the end
       if (data === '[DONE]') {
         eventSource.close()
         loading.value = false
         return
       }
       
-      messages.value[aiMessageIndex].content += data
+      messagesArray[aiMessageIndex].content += data
     }
 
     eventSource.onerror = (error) => {
       console.error('SSE Error:', error)
       eventSource.close()
       loading.value = false
-      if (!messages.value[aiMessageIndex].content) {
-         messages.value[aiMessageIndex].content = '抱歉，请求出错，请稍后再试。'
+      if (!messagesArray[aiMessageIndex].content) {
+         messagesArray[aiMessageIndex].content = '抱歉，请求出错，请稍后再试。'
       }
     }
   } catch (error) {
@@ -93,7 +129,7 @@ const handleClear = () => {
     eventSource.close()
   }
   loading.value = false
-  messages.value = [
+  sessionMessages.value[currentSessionId.value] = [
     { role: 'ai', content: '你好！有什么我可以帮助你的吗？' }
   ]
 }
