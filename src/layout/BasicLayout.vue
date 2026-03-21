@@ -26,13 +26,6 @@
         </div>
         <div 
           class="nav-item" 
-          :class="{ active: currentRoute.includes('/tool-center') }"
-          @click="router.push('/tool-center')"
-        >
-          工具调用中心
-        </div>
-        <div 
-          class="nav-item" 
           :class="{ active: currentRoute.includes('/knowledge-base') }"
           @click="router.push('/knowledge-base')"
         >
@@ -80,7 +73,6 @@
         <div class="mobile-nav-menu">
           <div class="nav-item" :class="{ active: currentRoute === '/' }" @click="router.push('/'); drawerVisible = false">首页</div>
           <div class="nav-item" :class="{ active: currentRoute.includes('/chat') }" @click="router.push('/chat'); drawerVisible = false">智能对话</div>
-          <div class="nav-item" :class="{ active: currentRoute.includes('/tool-center') }" @click="router.push('/tool-center'); drawerVisible = false">工具调用中心</div>
           <div class="nav-item" :class="{ active: currentRoute.includes('/knowledge-base') }" @click="router.push('/knowledge-base'); drawerVisible = false">知识库问答 (RAG)</div>
           <div class="nav-item" :class="{ active: currentRoute.includes('/agent') }" @click="router.push('/agent'); drawerVisible = false">自主智能体</div>
           <div class="nav-item">场景助手</div>
