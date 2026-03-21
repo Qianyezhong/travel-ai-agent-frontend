@@ -68,49 +68,142 @@
           class="message-wrapper"
           :class="msg.role === 'user' ? 'message-right' : 'message-left'"
         >
-          <div class="avatar" :class="msg.role">
+          <div class="avatar" :class="msg.role === 'agent' ? 'ai' : msg.role">
             <template v-if="msg.role === 'user'">我</template>
-            <template v-else-if="msg.role === 'ai'">AI</template>
-            <el-icon v-else-if="msg.role === 'agent'"><Monitor /></el-icon>
+            <template v-else>AI</template>
           </div>
-          <div class="message-content">
-            <!-- Normal Text Message -->
-            <div v-if="!msg.isAgentStep" class="bubble" :class="msg.role">
-              {{ msg.content }}
-            </div>
-            
-            <!-- Agent Step Message -->
-            <div v-else class="agent-step-bubble">
-              <div class="agent-step-header" @click="msg.expanded = !msg.expanded">
-                <div class="agent-step-title">
-                  <el-icon v-if="msg.stepType === 'thinking'"><Connection /></el-icon>
-                  <el-icon v-else-if="msg.stepType === 'tool'"><Setting /></el-icon>
-                  <el-icon v-else-if="msg.stepType === 'success'" class="success-icon"><Select /></el-icon>
-                  <span>{{ msg.stepTitle }}</span>
-                </div>
-                <el-icon class="expand-icon" :class="{ 'is-expanded': msg.expanded }"><ArrowRight /></el-icon>
-              </div>
-              <el-collapse-transition>
-                <div v-show="msg.expanded" class="agent-step-body">
-                  <div v-if="msg.stepType === 'thinking'" class="thinking-content">
-                    {{ msg.content }}
-                  </div>
-                  <div v-else-if="msg.stepType === 'tool'" class="tool-content">
-                    <div class="tool-call">
-                      <el-icon><Link /></el-icon> 调用工具: {{ msg.toolName }}
+          <div class="message-content" :class="{ 'is-agent': msg.role === 'agent' }">
+            <!-- Normal Text Message or Unified Agent Message -->
+            <div class="bubble" :class="msg.role">
+              
+              <!-- Agent Hierarchical Content -->
+              <template v-if="msg.role === 'agent'">
+                
+                <!-- Main Thinking Process (Top Level) -->
+                <div v-if="msg.thinking" class="nested-step">
+                  <div class="nested-step-header" @click="msg.thinkingExpanded = !msg.thinkingExpanded">
+                    <div class="nested-step-title">
+                      <el-icon><Connection /></el-icon> 思考过程
                     </div>
-                    <div class="tool-result" v-if="msg.content">
-                      {{ msg.content }}
+                    <el-icon class="expand-icon" :class="{ 'is-expanded': msg.thinkingExpanded }"><ArrowRight /></el-icon>
+                  </div>
+                  <el-collapse-transition>
+                    <div v-show="msg.thinkingExpanded" class="nested-step-body">
+                      {{ msg.thinking }}
                     </div>
-                  </div>
-                  <div v-else class="thinking-content">
-                     {{ msg.content }}
-                  </div>
+                  </el-collapse-transition>
                 </div>
-              </el-collapse-transition>
+
+                <!-- Main Text Content (Task Plan or normal text) -->
+                <div v-if="msg.content" class="agent-text-content" v-html="formatContent(msg.content)"></div>
+
+                <!-- Sub Steps (Tool Calls, further thinking) -->
+                <div v-if="msg.steps && msg.steps.length > 0" class="agent-steps-container">
+                  <template v-for="(step, stepIndex) in msg.steps" :key="stepIndex">
+                    
+                    <!-- Conclusion Step -->
+                    <div v-if="step.type === 'conclusion'" class="conclusion-step">
+                      <div class="conclusion-header">
+                        <el-icon><CircleCheckFilled /></el-icon>
+                        <span>{{ step.title || '结论' }}</span>
+                      </div>
+                      <div class="conclusion-body" v-html="formatContent(step.content)"></div>
+                    </div>
+
+                    <!-- Normal Tool Step -->
+                    <div v-else class="nested-step tool-step">
+                      <div class="nested-step-header" @click="step.expanded = !step.expanded">
+                      <div class="nested-step-title tool-title">
+                        <el-icon v-if="step.status === 'success'"><Select color="#67c23a" /></el-icon>
+                        <el-icon v-else-if="step.status === 'loading'" class="is-loading"><Loading color="#409eff" /></el-icon>
+                        <el-icon v-else><Document /></el-icon>
+                        <span>{{ step.title }}</span>
+                      </div>
+                      <el-icon class="expand-icon" :class="{ 'is-expanded': step.expanded }"><ArrowRight /></el-icon>
+                    </div>
+                    
+                    <el-collapse-transition>
+                      <div v-show="step.expanded" class="nested-step-body">
+                        <!-- Step's own thinking -->
+                        <div v-if="step.thinking" class="nested-step inner-thinking">
+                           <div class="nested-step-header" @click="step.thinkingExpanded = !step.thinkingExpanded">
+                            <div class="nested-step-title">
+                              <el-icon><Connection /></el-icon> 思考过程
+                            </div>
+                            <el-icon class="expand-icon" :class="{ 'is-expanded': step.thinkingExpanded }"><ArrowRight /></el-icon>
+                          </div>
+                          <el-collapse-transition>
+                            <div v-show="step.thinkingExpanded" class="nested-step-body">
+                              {{ step.thinking }}
+                            </div>
+                          </el-collapse-transition>
+                        </div>
+                        
+                        <!-- Tool call visual -->
+                        <div class="tool-call-tag" v-if="step.toolName">
+                          <el-icon><Link /></el-icon> 调用工具: {{ step.toolName }}
+                        </div>
+
+                        <!-- Tool Loading State -->
+                        <div class="tool-loading-box" v-if="step.status === 'loading' && !step.content">
+                          <el-icon class="is-loading"><Loading /></el-icon>
+                          <span>正在执行工具调用并等待返回结果...</span>
+                        </div>
+
+                        <!-- Tool Result -->
+                        <div class="tool-result-box" v-else-if="step.content">
+                          <el-icon class="result-icon"><Document /></el-icon>
+                          <div class="result-text">
+                            
+                            <!-- File Download Card -->
+                            <div v-if="step.fileInfo" class="file-download-card" @click="downloadFile(step.fileInfo)">
+                              <div class="file-icon" :class="step.fileInfo.ext">
+                                <el-icon v-if="['jpg','jpeg','png'].includes(step.fileInfo.ext)"><Picture /></el-icon>
+                                <el-icon v-else-if="step.fileInfo.ext === 'pdf'"><Document /></el-icon>
+                                <el-icon v-else><Tickets /></el-icon>
+                              </div>
+                              <div class="file-details">
+                                <span class="file-name">{{ step.fileInfo.name }}</span>
+                                <span class="file-hint">点击下载文件</span>
+                              </div>
+                              <el-icon class="download-icon"><Download /></el-icon>
+                            </div>
+
+                            <!-- Array of Search Results or items -->
+                            <template v-if="Array.isArray(step.content)">
+                              <div class="search-result-list">
+                                <div v-for="(item, i) in step.content" :key="i" class="search-result-item">
+                                  <a v-if="item.link" :href="item.link" target="_blank" class="search-title">{{ item.title || item.name || '链接' }}</a>
+                                  <div v-else class="search-title">{{ item.title || item.name || `结果 ${i + 1}` }}</div>
+                                  <div class="search-snippet">{{ item.snippet || item.description || item.content || JSON.stringify(item) }}</div>
+                                </div>
+                              </div>
+                            </template>
+                            <!-- Object Result -->
+                            <template v-else-if="typeof step.content === 'object'">
+                              <pre class="json-result">{{ JSON.stringify(step.content, null, 2) }}</pre>
+                            </template>
+                            <!-- String Result -->
+                            <template v-else>
+                              {{ step.content }}
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                    </el-collapse-transition>
+                    </div>
+                  </template>
+                </div>
+
+              </template>
+
+              <!-- Normal User/AI Content -->
+              <template v-else>
+                {{ msg.content }}
+              </template>
             </div>
 
-            <div class="actions" v-if="msg.role === 'ai' && !msg.isAgentStep">
+            <div class="actions" v-if="msg.role === 'ai' || msg.role === 'agent'">
               <el-icon class="copy-icon" @click="copyText(msg.content)"><CopyDocument /></el-icon>
             </div>
           </div>
@@ -145,7 +238,9 @@
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { 
   ChatLineRound, Delete, CopyDocument, Position, 
-  Expand, Monitor, Connection, Setting, Select, ArrowRight, Link
+  Expand, Monitor, Connection, Setting, Select, ArrowRight, Link,
+  Document, Aim, CaretTop, Loading, CircleCheckFilled, Download,
+  Picture, Tickets
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -208,9 +303,38 @@ const handleSend = (e) => {
   inputMessage.value = ''
 }
 
+const formatContent = (content) => {
+  if (!content) return ''
+  if (typeof content !== 'string') {
+    try { content = JSON.stringify(content, null, 2) } catch(e) {}
+  }
+  let formatted = content
+  
+  // Handle markdown bold
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  
+  // Handle basic markdown links
+  formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="chat-link">$1</a>')
+  
+  // Handle line breaks and plan items
+  formatted = formatted.replace(/\n/g, '<br>')
+                .replace(/(\d+\.\s.*?)(<br>|$)/g, '<div class="plan-item">$1</div>')
+                
+  return formatted
+}
+
 const copyText = (text) => {
   navigator.clipboard.writeText(text)
   ElMessage.success('复制成功')
+}
+
+const downloadFile = (fileInfo) => {
+  if (!fileInfo || !fileInfo.url) {
+    ElMessage.error('无法获取文件下载链接')
+    return
+  }
+  // Open download link in a new tab/window
+  window.open(fileInfo.url, '_blank')
 }
 
 const scrollToBottom = () => {
@@ -424,90 +548,98 @@ onMounted(() => {
   display: inline-block;
 }
 
-.bubble.ai {
-  background: #f4f4f5;
+.bubble.ai, .bubble.agent {
+  background: #f8f9fb;
   color: #303133;
   border-top-left-radius: 4px;
-}
-
-.bubble.user {
-  background: #ecf5ff;
-  color: #409eff;
-  border-top-right-radius: 4px;
-}
-
-/* Agent Step Styles */
-.agent-step-bubble {
   width: 100%;
-  min-width: 300px;
-  background: #f8f9fb;
-  border-radius: 12px;
+}
+
+/* Agent Hierarchical Styles */
+.agent-text-content {
+  margin: 12px 0;
+  padding: 0;
+  color: #303133;
+  line-height: 1.6;
+}
+
+:deep(.plan-item) {
+  margin-top: 8px;
+  padding-left: 12px;
+  position: relative;
+}
+
+:deep(.plan-item::before) {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #409eff;
+}
+
+.nested-step {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #ffffff;
   border: 1px solid #ebeef5;
   overflow: hidden;
-  border-top-left-radius: 4px;
 }
 
-.agent-step-header {
-  padding: 12px 16px;
+.nested-step-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  background: #f0f2f5;
-  user-select: none;
+  padding: 12px 16px;
+  background: #fbfbfc;
   transition: background 0.3s;
+  color: #606266;
 }
 
-.agent-step-header:hover {
-  background: #e4e7ed;
+.nested-step-header:hover {
+  background: #f5f7fa;
 }
 
-.agent-step-title {
+.nested-step-title {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
+}
+
+.tool-step {
+  border-left: 3px solid #409eff;
+}
+
+.tool-title {
   color: #303133;
 }
 
-.agent-step-title .el-icon {
-  font-size: 16px;
+.tool-title .el-icon {
   color: #409eff;
+  font-size: 16px;
 }
 
-.success-icon {
-  color: #67c23a !important;
+.inner-thinking {
+  margin-bottom: 16px;
+  border: 1px dashed #e4e7ed;
 }
 
-.expand-icon {
-  color: #909399;
-  transition: transform 0.3s;
-}
-
-.expand-icon.is-expanded {
-  transform: rotate(90deg);
-}
-
-.agent-step-body {
+.nested-step-body {
   padding: 16px;
   font-size: 13px;
   color: #606266;
   line-height: 1.6;
+  white-space: pre-wrap;
+  border-top: 1px solid #ebeef5;
   background: #ffffff;
 }
 
-.thinking-content {
-  white-space: pre-wrap;
-}
-
-.tool-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tool-call {
+.tool-call-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -515,18 +647,210 @@ onMounted(() => {
   padding: 6px 12px;
   border-radius: 6px;
   font-weight: 500;
-  color: #303133;
-  width: fit-content;
+  color: #606266;
+  margin-bottom: 12px;
+  border: 1px solid #e4e7ed;
+  font-size: 13px;
 }
 
-.tool-result {
-  background: #f8f9fa;
+.tool-result-box {
+  display: flex;
+  gap: 12px;
+  background: #f8f9fb;
   padding: 12px;
   border-radius: 8px;
+  color: #303133;
   border: 1px solid #ebeef5;
+}
+
+.conclusion-step {
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.conclusion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #303133;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.conclusion-header .el-icon {
+  font-size: 18px;
+}
+
+.conclusion-body {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.tool-loading-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4f9ff;
+  padding: 12px;
+  border-radius: 8px;
+  color: #409eff;
+  border: 1px dashed #a0cfff;
+  font-size: 13px;
+}
+
+:deep(.chat-link) {
+  color: #409eff;
+  text-decoration: none;
+}
+
+:deep(.chat-link:hover) {
+  text-decoration: underline;
+}
+
+:deep(strong) {
+  font-weight: 600;
+  color: #303133;
+}
+
+.result-icon {
+  font-size: 24px;
+  color: #409eff;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.result-text {
+  flex: 1;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.search-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.search-result-item {
+  background: #ffffff;
+  border: 1px solid #ebeef5;
+  padding: 12px;
+  border-radius: 8px;
+  transition: box-shadow 0.3s;
+}
+
+.search-result-item:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.search-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+  text-decoration: none;
+  margin-bottom: 6px;
+  display: block;
+}
+
+a.search-title:hover {
+  text-decoration: underline;
+}
+
+.search-snippet {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.json-result {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
   font-family: monospace;
+  font-size: 13px;
+  color: #303133;
+}
+
+.file-download-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #ebeef5;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 12px;
+}
+
+.file-download-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.file-download-card:hover .download-icon {
+  color: #409eff;
+  transform: scale(1.1);
+}
+
+.file-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.file-icon.pdf { background: #f56c6c; }
+.file-icon.txt { background: #909399; }
+.file-icon.png, .file-icon.jpg, .file-icon.jpeg { background: #67c23a; }
+.file-icon { background: #409eff; } /* Default */
+
+.file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+.download-icon {
+  font-size: 20px;
+  color: #c0c4cc;
+  transition: all 0.3s ease;
 }
 
 .actions {

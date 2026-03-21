@@ -117,12 +117,18 @@ onMounted(() => {
 
 const handleQuickSend = () => {
   if (!quickMessage.value.trim()) return
-  // Navigate to chat page and pass the message via query parameter or state
-  // For now, we'll just redirect to the chat page
-  router.push({
-    path: '/chat',
-    query: { initialMessage: quickMessage.value }
-  })
+  
+  if (isDeepThinking.value) {
+    router.push({
+      path: '/agent',
+      query: { initialMessage: quickMessage.value }
+    })
+  } else {
+    router.push({
+      path: '/chat',
+      query: { initialMessage: quickMessage.value }
+    })
+  }
 }
 </script>
 

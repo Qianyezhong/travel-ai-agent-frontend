@@ -9,15 +9,29 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
 import { ElMessage } from 'element-plus'
+
+const route = useRoute()
+const router = useRouter()
 
 const messages = ref([
   { role: 'ai', content: '你好！有什么我可以帮助你的吗？' }
 ])
 const loading = ref(false)
 let eventSource = null
+
+onMounted(() => {
+  if (route.query.initialMessage) {
+    const msg = route.query.initialMessage
+    // default chatId can be anything for the initial message, e.g. '1'
+    handleSend(msg, '1')
+    // Clear the query so it doesn't trigger again on refresh
+    router.replace({ path: route.path })
+  }
+})
 
 const handleSend = async (text, chatId) => {
   if (!text) return
