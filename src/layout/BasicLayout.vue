@@ -43,17 +43,9 @@
       </nav>
 
       <div class="user-info">
-        <el-dropdown @command="handleCommand" trigger="click">
-          <span class="el-dropdown-link user-dropdown">
-            <el-icon class="user-icon"><User /></el-icon>
-            <span class="user-name">admin</span>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <el-button type="primary" class="login-btn" @click="router.push('/login')">
+          登录使用
+        </el-button>
       </div>
     </header>
 
@@ -124,10 +116,10 @@ const handleCommand = (command) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: 80px; /* Increased from 60px */
   background-color: #ffffff;
-  padding: 0 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 0 40px; /* Increased from 24px */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   z-index: 10;
 }
 
@@ -135,12 +127,12 @@ const handleCommand = (command) => {
   display: flex;
   align-items: center;
   cursor: pointer;
-  gap: 12px;
+  gap: 16px; /* Increased from 12px */
 }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 40px; /* Increased from 32px */
+  height: 40px;
   background: #000;
   color: #fff;
   border-radius: 50%;
@@ -148,12 +140,12 @@ const handleCommand = (command) => {
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 18px;
+  font-size: 22px; /* Increased from 18px */
 }
 
 .logo-text {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 26px; /* Increased from 20px */
+  font-weight: 700;
   color: #333;
   /* mimic gradient from image */
   background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
@@ -168,8 +160,8 @@ const handleCommand = (command) => {
 }
 
 .nav-item {
-  margin: 0 16px;
-  font-size: 14px;
+  margin: 0 24px; /* Increased from 16px */
+  font-size: 17px; /* Increased from 14px */
   color: #606266;
   cursor: pointer;
   height: 100%;
@@ -185,7 +177,7 @@ const handleCommand = (command) => {
 
 .nav-item.active {
   color: #409eff;
-  font-weight: 500;
+  font-weight: 600; /* Increased weight */
 }
 
 .nav-item.active::after {
@@ -194,7 +186,7 @@ const handleCommand = (command) => {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 2px;
+  height: 3px; /* Increased from 2px */
   background-color: #409eff;
 }
 
@@ -210,6 +202,24 @@ const handleCommand = (command) => {
 
 .user-icon {
   font-size: 18px;
+}
+
+.login-btn {
+  background: linear-gradient(135deg, #7c4dff 0%, #651fff 100%);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(124, 77, 255, 0.3);
+  transition: all 0.3s ease;
+  height: 44px;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 77, 255, 0.4);
+  background: linear-gradient(135deg, #8c62ff 0%, #753bff 100%);
 }
 
 .main-content {

@@ -15,7 +15,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ChatBox from '../components/ChatBox.vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,8 +71,50 @@ const handleDeleteSession = (sessionId) => {
   }
 }
 
+// Check if user is logged in
+const checkLoginStatus = () => {
+  const token = localStorage.getItem('accessToken')
+  if (!token) {
+    ElMessageBox.confirm(
+      `
+      <div style="text-align: center; padding: 20px 10px;">
+        <div style="font-size: 24px; font-weight: 800; color: #1f2937; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <span style="background: linear-gradient(135deg, #7c4dff, #409eff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">需要登录体验完整功能</span>
+        </div>
+        <p style="font-size: 16px; color: #4b5563; line-height: 1.8; margin-bottom: 12px; text-align: left;">
+          智能体及深度思考功能需要调度<strong style="color: #7c4dff;">强大的云端计算资源</strong>。
+        </p>
+        <p style="font-size: 16px; color: #4b5563; line-height: 1.8; text-align: left;">
+          为了给您提供更稳定、更专属的高级旅行规划服务，请您先进行登录。
+        </p>
+      </div>
+      `,
+      '',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '立即登录',
+        cancelButtonText: '暂不体验',
+        customClass: 'premium-auth-dialog',
+        showClose: false,
+        center: true,
+        confirmButtonClass: 'premium-confirm-btn'
+      }
+    ).then(() => {
+      router.push('/login')
+    }).catch(() => {
+      // User cancelled
+    })
+    return false
+  }
+  return true
+}
+
 const handleSend = async (text) => {
   if (!text) return
+  
+  if (!checkLoginStatus()) {
+    return
+  }
   
   const chatId = currentSessionId.value
   if (!sessionMessages.value[chatId]) {

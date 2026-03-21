@@ -19,3 +19,49 @@ body, html {
 * {
   box-sizing: border-box;
 }
+
+/* Premium Auth Dialog Styles */
+.premium-auth-dialog {
+  border-radius: 20px !important;
+  padding: 10px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  width: 480px !important;
+  max-width: 90vw !important;
+}
+
+.premium-auth-dialog .el-message-box__header {
+  display: none !important;
+}
+
+.premium-auth-dialog .el-message-box__content {
+  padding: 0 !important;
+}
+
+.premium-auth-dialog .el-message-box__btns {
+  padding: 10px 20px 20px !important;
+  display: flex !important;
+  justify-content: center !important;
+  gap: 16px !important;
+}
+
+.premium-auth-dialog .el-button {
+  padding: 12px 32px !important;
+  font-size: 16px !important;
+  border-radius: 12px !important;
+  height: auto !important;
+}
+
+.premium-auth-dialog .premium-confirm-btn {
+  background: linear-gradient(135deg, #7c4dff 0%, #409eff 100%) !important;
+  border: none !important;
+  box-shadow: 0 8px 20px rgba(124, 77, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.premium-auth-dialog .premium-confirm-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 24px rgba(124, 77, 255, 0.4) !important;
+}
